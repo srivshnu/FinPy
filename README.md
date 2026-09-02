@@ -1,140 +1,174 @@
-# Financial Calculators Suite
+# FinPy — NLP Assisted Risk & Anomaly Detection Web Application
 
-A professional financial computing and analysis toolkit built with Python and Streamlit. This suite provides high-precision calculations for reducing balance loans, prepayment and prepayment-impact simulations, and diverse investment pathways including Fixed Deposits (FD), Recurring Deposits (RD), and Compound Interest (CI) schedules.
+A unified, AI-driven banking intelligence copilot built with **Python**, **Streamlit**, **MySQL**, **XGBoost**, **Scikit-Learn**, and the **Google Gemini API**. 
 
-## Features
+FinPy transforms natural language customer scenarios and transaction descriptions into structured feature vectors, enforces strict cryptographic PII privacy, and executes real-time credit risk estimation, fraud anomaly scoring, or natural language database querying.
 
-### 1. Loan & Core Calculations
-* **Reducing Balance (EMI) Engine:** Computes stable reducing balance loans with robust Decimal precision to avoid fractional floating-point inaccuracies.
-* **Prepayment & Rate Schedules:** Supports flexible simulations for one-time or recurring prepayments and multi-period interest rate adjustments.
-* **Payment to Tenure:** Resolves reverse loan parameters to determine the total months required to clear liabilities given a fixed premium target.
+---
 
--### New Interactive Tools (added)
-- **Prepayment Impact Calculator:** Shows interest saved and months reduced for one-time or recurring prepayments.
-- **Amortization Charts:** Line and pie charts for outstanding balance and principal vs interest breakdown.
-- **Multi-Loan Comparison:** Side-by-side comparison of two loan scenarios (different tenures, rates, or extra payments).
-- **Multi-Loan Comparison:** Side-by-side comparison of multiple loan scenarios (different tenures, rates, or extra payments). The UI now accepts a user-specified number of loans (2–8) and dynamically generates input fields for each loan. After pressing "Compare Loans" the app shows:
-	- A summary metrics table (EMI, Tenure, Total Payment, Total Interest) for each loan.
-	- A combined outstanding-balance line chart across all loans.
-	- Pairwise deltas vs the first loan (Δ EMI, Δ Total Interest, Δ Tenure).
+## 🌟 Key Architecture & Features
 
-Usage tip: open the "Multi-Loan Comparison" page in the app, set "Number of loans to compare", fill the loan fields, then press "Compare Loans". The first loan entered is used as the reference for pairwise deltas.
+### 1. Unified Agentic Copilot Chat Interface (`ui/copilot.py`)
+- Single-page conversational banking workstation.
+- Users input natural language descriptions of customer loan applications, transaction alerts, or database inquiries.
+- Interactively routes queries to the appropriate machine learning pipeline or relational database engine.
 
-Additionally, a new **Co-ownership / Equity Contribution Tracker** page has been added. This page lets you model multiple co-owners, record down payments, specify each owner's monthly EMI share and extra one-time or recurring contributions, and then compute evolving ownership percentages over time based on both legal down-payment shares and actual principal contributed.
+### 2. Privacy-Preserving PII Anonymization Engine (`logic/hasher.py`)
+- **Zero-PII Exposure:** Raw customer identifiers (phone numbers, account numbers, names) never reach the machine learning models or third-party APIs.
+- Uses **HMAC-SHA256** with a server-side pepper key (`HASH_PEPPER`) to derive deterministic 8-character PINs and 64-character session hashes.
+- Ensures irreversible, privacy-safe identity tracking while completely removing personal bias from risk scoring.
 
-### 2. Investment Portfolio Planners
-* **Fixed Deposits (FD):** Tracks deposit appreciation over configurable compounding frequencies (Monthly, Quarterly, Half-Yearly, Yearly) with accurate yield metrics.
-* **Recurring Deposits (RD):** Models fixed monthly installments, calculating cumulative compounding growth matrices alongside total interest yields.
-* **Compound Interest (CI):** Breaks down long-term wealth assets into a clean, multi-year performance structure.
-* **Personal Planning Hub:** A new set of planning tools helps with cash resiliency, debt payoff optimization, sinking funds, budgeting recommendations, and net worth projections. Features include:
-	- Emergency Fund Runway Calculator — estimates how many months your liquid reserves will cover essential monthly liabilities.
-	- Debt Snowball vs Debt Avalanche Simulator — compare payoff timelines and total interest for up to 4 debts using psychological (smallest-balance-first) or mathematical (highest-rate-first) strategies.
-	- Sinking Fund Allocation Planner — computes exact monthly contributions to hit a future target (and checks RD alignment).
-	- Rule-Based Budget Optimizer — recommends 50/30/20 buckets and flags when home EMI exceeds safe thresholds (35%/40% of net income).
-	- Net Worth Velocity Tracker — projects assets, liabilities, and net worth over a multi-month horizon and highlights the convergence point where assets exceed liabilities.
+### 3. Natural Language Feature Extraction (`logic/inference_logic.py`)
+- Leverages **Google Gemini API** (`gemini-1.5-flash`) via strict prompt engineering to parse unstructured, free-form text into typed JSON feature objects.
+- Automatically infers domain-sound defaults for omitted parameters based on standard banking baselines.
 
-### 3. Data Portability & Reporting
-* **Excel Amortization Sheets:** Generates professional-grade multi-sheet workbooks using styling rules, cell formatting masks, headers, alternating data alignments, and terminal balance corrections.
+### 4. Credit Risk Classification Pipeline (`scripts/train_credit_model.py`)
+- Pre-trained **XGBoost Classifier** trained on relational data (`customers JOIN loans`).
+- Features: `age`, `annual_income`, `credit_score`, `employment_years`, `total_existing_debt`, `loan_amount_requested`, `loan_tenure_months`, `interest_rate`.
+- Handles class imbalance using `scale_pos_weight`, achieving **0.98 ROC-AUC** and 0.93 F1-score.
+- Outputs default probability percentage, risk level verdict (`LOW`, `MODERATE`, `HIGH`), and actionable underwriting recommendations.
 
-## System Architecture
+### 5. Transaction Anomaly & Fraud Detection (`scripts/train_anomaly_model.py`)
+- Pre-trained **K-Means Clustering** model coupled with `StandardScaler` normalisation.
+- Features: `transaction_amount`, `hour_of_day`, `distance_from_home_km`, `transactions_last_24h`, `avg_txn_amount_30d`.
+- Evaluates Euclidean distance from normal behavior centroids against a 95th-percentile anomaly threshold.
+- Visualises transaction positioning via inline Matplotlib scatter plots.
 
-The codebase relies on strict mathematical and application tier separation:
-* `loan_calc.py`: Pure computational engine managing decimal quantization and amortization schedules (EMI and prepayment handling).
-* `investment_calc.py`: Financial model dataclasses and looping algorithms for structural investment plans.
-* `excel_export.py`: Template generation layer configured via openpyxl.
-* `app.py`: High-level entry routing across modules (`loan_page.py`, `investment_page.py`, `payment_to_tenure.py`, `ownership_page.py`).
+### 6. Text-to-SQL Analytics Engine (`logic/eda_logic.py`)
+- Converts plain-English queries into valid MySQL queries using LLM schema context.
+- Executes queries against live MySQL tables and presents interactive Pandas DataFrames.
+- Offers automatic dataset correlation heatmaps and instant CSV/Excel data exports.
 
-## Installation
+---
 
-Ensure a standard Python runtime environment is available. Install system dependencies via pip:
+## 🗃 Relational Database Schema (`logic/db_core.py`)
 
-Recommended (create and activate a virtual environment first):
+FinPy utilizes a 3-table relational schema designed for Core Banking Systems (CBS):
 
-Windows (PowerShell):
+```
+ ┌──────────────────────┐         ┌──────────────────────────────┐
+ │      customers       │         │            loans             │
+ ├──────────────────────┤         ├──────────────────────────────┤
+ │ customer_id (PK)     │◄──┐     │ loan_id (PK)                 │
+ │ full_name (PII)      │   │     │ customer_id (FK) ────────────┘
+ │ phone_number (PII)   │   │     │ total_existing_debt          │
+ │ age                  │   │     │ loan_amount_requested        │
+ │ annual_income        │   │     │ loan_tenure_months           │
+ │ credit_score         │   │     │ interest_rate                │
+ │ employment_years     │   │     │ default_status               │
+ └──────────────────────┘   │     └──────────────────────────────┘
+                            │
+                            │     ┌──────────────────────────────┐
+                            │     │         transactions         │
+                            │     ├──────────────────────────────┤
+                            │     │ transaction_id (PK)          │
+                            └────┤ customer_id (FK)             │
+                                  │ account_number (PII)         │
+                                  │ transaction_amount           │
+                                  │ hour_of_day                  │
+                                  │ distance_from_home_km        │
+                                  │ transactions_last_24h        │
+                                  │ avg_txn_amount_30d           │
+                                  └──────────────────────────────┘
+```
 
+---
+
+## 📂 Project Directory Structure
+
+```
+FinPy/
+├── app.py                          # Main Streamlit application router
+├── .env.example                    # Template for environment credentials
+├── .gitignore                      # Excludes .env, models/, and data/
+├── requirements.txt                # Production dependencies
+├── README.md                       # Documentation
+├── logic/                          # Core business & AI logic (No UI code)
+│   ├── db_core.py                  # MySQL schema management & connection
+│   ├── eda_logic.py                # Text-to-SQL, EDA reporting, format exporters
+│   ├── hasher.py                   # HMAC-SHA256 cryptographic PII anonymization
+│   ├── inference_logic.py          # LLM text parser + model inference handlers
+│   ├── llm_client.py               # Centralized Google Gemini API client
+│   └── plot_logic.py               # Matplotlib chart generators
+├── ui/                             # Streamlit UI layer
+│   └── copilot.py                  # Single-page Agentic Copilot interface
+├── scripts/                        # Offline setup & training scripts
+│   ├── seed_database.py            # Generates 2,000 synthetic CBS records in MySQL
+│   ├── train_credit_model.py       # Trains & saves models/credit_model.pkl
+│   └── train_anomaly_model.py      # Trains & saves models/anomaly_*.pkl
+├── models/                         # Serialized model binaries (.pkl)
+└── data/                           # Local reference datasets
+```
+
+---
+
+## 🚀 Setup & Execution Guide
+
+### 1. Prerequisites
+- Python 3.10+ installed.
+- MySQL Server installed and running locally or remotely.
+
+### 2. Environment Configuration
+Clone the repository and set up environment variables:
+
+```bash
+git clone https://github.com/srivshnu/FinPy.git
+cd FinPy
+```
+
+Create a `.env` file in the root directory (refer to `.env.example`):
+```env
+GEMINI_API_KEY=your_google_gemini_api_key_here
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DB=finpy
+HASH_PEPPER=your_secret_pepper_string_here
+```
+
+### 3. Installation
+Create and activate a virtual environment, then install dependencies:
+
+**Windows (PowerShell):**
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Windows (cmd.exe):
-
-```cmd
-python -m venv .venv
-.\.venv\Scripts\activate.bat
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-macOS / Linux:
-
+**macOS / Linux:**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Dependencies
+### 4. Database Seeding & Model Training (Run Once Offline)
+Initialize the MySQL schema, seed synthetic records, and train the ML models:
 
-* **streamlit:** User interface construction and real-time telemetry rendering.
-* **pandas:** In-memory tabular structures and data framing.
-* **openpyxl:** Production-ready file output composition.
-* **pytest:** Mathematical accuracy and validation suite.
+```bash
+# Step 1: Seed MySQL database (2,000 customers, loans, transactions)
+python scripts/seed_database.py
 
-## Execution
+# Step 2: Train XGBoost Credit Risk Model
+python scripts/train_credit_model.py
 
-To deploy the user interface wrapper locally, initialize the Streamlit runtime against the core layout script:
+# Step 3: Train K-Means Anomaly Detection Model
+python scripts/train_anomaly_model.py
+```
 
-From the project root (activate your virtual env first):
+### 5. Running the Application
+Launch the Streamlit Agentic Banking Copilot:
 
 ```bash
 streamlit run app.py
 ```
 
-Streamlit will start a local server (default http://localhost:8501). If the browser doesn't open automatically, paste the printed URL into your browser.
+Open `http://localhost:8501` in your browser.
 
-If you prefer a specific port, use:
+---
 
-```bash
-streamlit run app.py --server.port 8502
-```
+## 🛡 Security & Privacy Statement
 
-## Testing and Verification
-
-Unit tests
-
-Preferred: if you have `pytest` installed, run the full test suite:
-
-```bash
-pytest -q
-```
-
-Fallback: if `pytest` is not available in your environment, there's a lightweight runner included. From the project root run:
-
-```bash
-python run_tests.py
-```
-
-Both methods execute the loan engine and new feature tests (prepayment and multi-loan comparisons). Use the console output to inspect any failing assertions.
-
-Troubleshooting
-
-- If `streamlit run app.py` exits with code 1, check the console for the error stack. Common causes:
-	- Missing dependencies: activate your virtual environment and re-run `pip install -r requirements.txt`.
-	- Port conflicts: specify `--server.port` as shown above.
-	- Import errors: ensure you run from the project root where `app.py` resides.
-
-- If `pytest` is not found and you prefer it, install it with:
-
-```bash
-pip install pytest
-```
-
-Notes
-
-- Primary UI pages are implemented in `loan_page.py`, `prepayment_page.py`, `charts_page.py`, `multi_loan_page.py`, and `ownership_page.py`.
-- Computational logic lives in `logic/` (`loan_calc.py`, `prepayment.py`, `multi_loan.py`).
-- Excel export uses `excel_export.py` and requires `openpyxl` (listed in `requirements.txt`).
+- **API Keys & Credentials:** Strictly managed via `python-dotenv` and ignored in `.gitignore`.
+- **PII Protection:** Identifiers are stripped and replaced with HMAC-SHA256 digests prior to external API transmission or model inference.
