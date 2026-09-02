@@ -1,7 +1,13 @@
 streamlit
 pandas
-openpyxl
-pytest
 matplotlib
+seaborn
 plotly
-Pillow
+scikit-learn
+xgboost
+openpyxl
+mysql-connector-python
+google-generativeai
+python-dotenv
+faker
+joblib
