@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_MODEL_NAME = "gemini-1.5-flash"
+_MODEL_NAME = "gemini-3.5-flash"
 _client_initialised = False
 
 

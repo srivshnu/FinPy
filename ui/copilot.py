@@ -169,7 +169,7 @@ def render():
         horizontal=True
     )
 
-    run_btn = st.button("🚀 Run Copilot", type="primary", use_container_width=True)
+    run_btn = st.button("Run", type="primary", use_container_width=True)
 
     if run_btn:
         if not user_input.strip():
