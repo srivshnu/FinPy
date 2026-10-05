@@ -1,7 +1,7 @@
 <div align="center">
   <h1>FinPy</h1>
   <p><b>NLP-Assisted Risk & Anomaly Detection Web Application</b></p>
-  
+
   ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
   ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
   ![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat&logo=mysql&logoColor=white)
@@ -10,51 +10,62 @@
   ![Gemini](https://img.shields.io/badge/Google_GenAI-Gemini-blue?logo=google)
 </div>
 
-<br/>
+---
 
-A unified, AI-driven banking intelligence copilot built with **Python**, **Streamlit**, **MySQL**, **XGBoost**, **Scikit-Learn**, and the **Google Gemini API**. 
+## Overview
 
-FinPy transforms natural language customer scenarios and transaction descriptions into structured feature vectors, enforces strict cryptographic PII privacy, and executes real-time credit risk estimation, fraud anomaly scoring, and natural language database querying.
+FinPy is a single-page banking intelligence app. A user types a plain-English scenario (a loan applicant, a transaction, or a data question), picks an action, and clicks **Run**. FinPy then:
+
+1. Uses **Google Gemini** to turn the free text into a strict, typed JSON record.
+2. **Anonymises PII** with HMAC-SHA256 so raw identifiers never reach the model layer.
+3. Routes the record to a **pre-trained ML model** (XGBoost or K-Means) or to a **live MySQL database** and shows the result as metrics, charts and tables.
+
+> The data is **synthetic** (generated with Faker). FinPy is a portfolio/learning project, not a production credit decisioning system.
 
 ---
 
-## Key Architecture & Features
+## Features
 
-### 1. Unified Agentic Copilot Chat Interface
-- **Single-Page Workstation:** A clean, conversational banking UI built in Streamlit.
-- **Intent Routing:** Users input natural language descriptions of customer loan applications, transaction alerts, or database inquiries, and the system interactively routes queries to the appropriate machine learning pipeline or relational database engine.
+| Action | What it does | Tech |
+|---|---|---|
+| **Credit Risk** | Estimates default probability and gives a `LOW` / `MODERATE` / `HIGH` verdict with an underwriting recommendation | XGBoost |
+| **Anomaly / Fraud** | Flags transactions that sit too far from normal behaviour clusters | K-Means + StandardScaler |
+| **Text-to-SQL** | Converts a plain-English question into MySQL, runs it, shows a DataFrame, heatmap and CSV/Excel export | Gemini + MySQL + Pandas |
 
-### 2. Privacy-Preserving PII Anonymization Engine
-- **Zero-PII Exposure:** Raw customer identifiers (phone numbers, account numbers, names) never reach the machine learning models or third-party APIs.
-- **HMAC-SHA256:** Uses a server-side pepper key (`HASH_PEPPER`) to derive deterministic 8-character PINs and 64-character session hashes.
-- Ensures irreversible, privacy-safe identity tracking while completely removing personal bias from risk scoring.
+### Privacy by design
+- Names, phone numbers and account numbers are never sent to the models.
+- `HMAC-SHA256(pepper, identifier)` derives a deterministic 8-character PIN; a SHA-256 session hash is built from the PIN, a timestamp and the other PII fields.
+- The pepper (`HASH_PEPPER`) lives only in `.env`, which is git-ignored.
 
-### 3. Natural Language Feature Extraction
-- Leverages the **Google Gemini API** (`gemini-1.5-flash`) via strict prompt engineering to parse unstructured, free-form text into typed JSON feature objects.
-- Automatically infers domain-sound defaults for omitted parameters based on standard banking baselines.
-
-### 4. Credit Risk Classification Pipeline
-- Pre-trained **XGBoost Classifier** trained on relational banking data.
-- **Features:** `age`, `annual_income`, `credit_score`, `employment_years`, `total_existing_debt`, `loan_amount_requested`, `loan_tenure_months`, `interest_rate`.
-- Handles class imbalance using `scale_pos_weight`, achieving **0.98 ROC-AUC** and 0.93 F1-score.
-- Outputs default probability percentage, risk level verdict (`LOW`, `MODERATE`, `HIGH`), and actionable underwriting recommendations.
-
-### 5. Transaction Anomaly & Fraud Detection
-- Pre-trained **K-Means Clustering** model coupled with `StandardScaler` normalisation.
-- **Features:** `transaction_amount`, `hour_of_day`, `distance_from_home_km`, `transactions_last_24h`, `avg_txn_amount_30d`.
-- Evaluates Euclidean distance from normal behavior centroids against a 95th-percentile anomaly threshold.
-- Visualises transaction positioning via inline Matplotlib scatter plots.
-
-### 6. Text-to-SQL Analytics Engine
-- Converts plain-English queries into valid MySQL queries using LLM schema context.
-- Executes queries against live MySQL tables and presents interactive Pandas DataFrames.
-- Offers automatic dataset correlation heatmaps and instant CSV/Excel data exports.
+### Model details
+- **Credit model:** XGBoost with `scale_pos_weight` for class imbalance. Reported on the synthetic dataset: **0.98 ROC-AUC**, **0.93 F1**. Features: `age`, `annual_income`, `credit_score`, `employment_years`, `total_existing_debt`, `loan_amount_requested`, `loan_tenure_months`, `interest_rate`.
+- **Risk bands:** default probability `>= 70%` is HIGH, `>= 40%` is MODERATE, otherwise LOW.
+- **Anomaly model:** K-Means on `transaction_amount`, `hour_of_day`, `distance_from_home_km`, `transactions_last_24h`, `avg_txn_amount_30d`. A transaction is anomalous if its distance to the nearest centroid exceeds the **95th-percentile** training threshold.
 
 ---
 
-## Relational Database Schema
+## Architecture
 
-FinPy utilizes a 3-table relational schema designed for Core Banking Systems (CBS):
+```text
+ User text
+    |
+    v
+ [ Streamlit UI  ui/copilot.py ]
+    |
+    v
+ [ Gemini parser  logic/inference_logic.py ] --> typed JSON features
+    |
+    v
+ [ HMAC-SHA256 hasher  logic/hasher.py ] --> anonymised key
+    |
+    +--> XGBoost credit model ----> verdict + probability
+    +--> K-Means anomaly model ---> verdict + centroid distance
+    +--> Text-to-SQL (eda_logic) -> MySQL -> DataFrame / charts
+```
+
+The UI layer contains no business logic: everything in `logic/` is plain Python with no Streamlit imports.
+
+### Database schema (MySQL, 3 tables)
 
 ```text
  +----------------------+         +------------------------------+
@@ -85,100 +96,103 @@ FinPy utilizes a 3-table relational schema designed for Core Banking Systems (CB
 
 ---
 
-## Project Directory Structure
+## Project Structure
 
 ```text
 FinPy/
-|-- app.py                          # Main Streamlit application router
-|-- .env.example                    # Template for environment credentials
-|-- .gitignore                      # Excludes .env, models/, and data/
-|-- requirements.txt                # Production dependencies
-|-- README.md                       # Documentation
-|-- logic/                          # Core business & AI logic (No UI code)
-|   |-- db_core.py                  # MySQL schema management & connection
-|   |-- eda_logic.py                # Text-to-SQL, EDA reporting, format exporters
-|   |-- hasher.py                   # HMAC-SHA256 cryptographic PII anonymization
-|   |-- inference_logic.py          # LLM text parser + model inference handlers
-|   |-- llm_client.py               # Centralized Google Gemini API client
-|   |-- plot_logic.py               # Matplotlib chart generators
-|-- ui/                             # Streamlit UI layer
-|   |-- copilot.py                  # Single-page Agentic Copilot interface
-|-- scripts/                        # Offline setup & training scripts
-|   |-- seed_database.py            # Generates 2,000 synthetic CBS records in MySQL
-|   |-- train_credit_model.py       # Trains & saves models/credit_model.pkl
-|   |-- train_anomaly_model.py      # Trains & saves models/anomaly_*.pkl
-|-- models/                         # Serialized model binaries (.pkl)
-|-- data/                           # Local reference datasets
+|-- app.py                      # Streamlit entry point (router)
+|-- requirements.txt
+|-- .env.example                # Template for credentials
+|-- logic/                      # Business + AI logic (no UI code)
+|   |-- db_core.py              # MySQL connection, auto-create DB + schema
+|   |-- eda_logic.py            # Text-to-SQL, EDA, exporters
+|   |-- hasher.py               # HMAC-SHA256 PII anonymisation
+|   |-- inference_logic.py      # LLM parsing + model inference
+|   |-- llm_client.py           # Gemini client
+|   |-- plot_logic.py           # Matplotlib charts
+|-- ui/
+|   |-- copilot.py              # Single-page UI
+|-- scripts/
+|   |-- seed_database.py        # Seeds 2,000 synthetic customers/loans/transactions
+|   |-- train_credit_model.py   # Trains XGBoost -> models/credit_model.pkl
+|   |-- train_anomaly_model.py  # Trains K-Means -> models/anomaly_*.pkl
+|-- models/                     # Generated .pkl files (git-ignored)
 ```
 
 ---
 
-## Setup & Execution Guide
+## Getting Started
 
-### 1. Prerequisites
-- Python 3.10+ installed.
-- MySQL Server installed and running locally or remotely.
+### Prerequisites
+- Python 3.10+
+- A running MySQL server
+- A Google Gemini API key from [Google AI Studio](https://aistudio.google.com/)
 
-### 2. Environment Configuration
-Clone the repository and set up environment variables:
-
-```bash
+### 1. Clone and install
+```powershell
 git clone https://github.com/srivshnu/FinPy.git
 cd FinPy
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1      # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Create a `.env` file in the root directory (refer to `.env.example`):
+### 2. Configure `.env`
+Copy `.env.example` to `.env` and fill it in:
 ```env
-GEMINI_API_KEY=your_google_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key
 MYSQL_HOST=localhost
 MYSQL_USER=root
 MYSQL_PASSWORD=your_mysql_password
 MYSQL_DB=finpy
-HASH_PEPPER=your_secret_pepper_string_here
+HASH_PEPPER=any_long_random_secret
 ```
+The `finpy` database and its tables are created automatically on first connection.
 
-### 3. Installation
-Create and activate a virtual environment, then install dependencies:
-
-**Windows (PowerShell):**
+### 3. Seed data and train models (once)
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-**macOS / Linux:**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 4. Database Seeding & Model Training (Run Once Offline)
-Initialize the MySQL schema, seed synthetic records, and train the ML models:
-
-```bash
-# Step 1: Seed MySQL database (2,000 customers, loans, transactions)
-python scripts/seed_database.py
-
-# Step 2: Train XGBoost Credit Risk Model
+python scripts/seed_database.py          # skips if already seeded
 python scripts/train_credit_model.py
-
-# Step 3: Train K-Means Anomaly Detection Model
 python scripts/train_anomaly_model.py
 ```
 
-### 5. Running the Application
-Launch the Streamlit Copilot UI:
-
-```bash
+### 4. Launch
+```powershell
 streamlit run app.py
 ```
-Open `http://localhost:8501` in your browser.
+Open `http://localhost:8501`.
 
 ---
 
-## Security & Privacy Statement
+## Example Prompts
 
-- **API Keys & Credentials:** Strictly managed via `python-dotenv` and ignored in `.gitignore` to prevent accidental credential leakage.
-- **PII Protection:** All customer identifiers are stripped and replaced with HMAC-SHA256 digests prior to external API transmission or model inference, maintaining compliance with modern data privacy standards.
+- **Credit Risk:** `Rahul, 29, earns 8 lakh a year, credit score 710, 4 years employed, existing debt 1.5 lakh, wants a 5 lakh loan for 36 months at 11%.`
+- **Anomaly:** `A transaction of 95,000 at 3 AM, 800 km from home, 9 transactions in the last 24 hours, usual average is 2,000.`
+- **Text-to-SQL:** `Show the average credit score of customers whose loans defaulted.`
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Access denied for user 'root'` | Set the correct `MYSQL_PASSWORD` in `.env` |
+| `Fatal error in launcher` for streamlit | The `.venv` was moved; delete it and recreate (step 1) |
+| `404 model not found` from Gemini | The model name in `logic/llm_client.py` was retired; pick a current one from `genai.list_models()` |
+| `credit_model.pkl not found` | Run the training scripts (step 3) |
+
+---
+
+## Limitations
+
+- All data is synthetic, so metrics (0.98 ROC-AUC) will not transfer to real portfolios.
+- The LLM infers defaults for missing fields; unusual inputs can produce unrealistic features.
+- Generated SQL is executed against the database; run it with a read-only MySQL user in any shared setting.
+- `google-generativeai` is deprecated; migrating to `google-genai` is a planned improvement.
+
+---
+
+## Security Notes
+
+- Secrets are loaded with `python-dotenv`; `.env`, `models/` and `data/` are git-ignored.
+- Never commit your real `.env`. Rotate your Gemini key if it was ever shared.
